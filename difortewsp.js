@@ -330,7 +330,7 @@ async function cmdCampaignList() {
 
 const HELP = `${C.b}difortewsp${C.reset} — CLI de la plataforma WhatsApp de Di Forte
 
-${C.b}Empezá:${C.reset}  npx difortewsp login    ${C.dim}(abre el Studio, te logueás, listo)${C.reset}
+${C.b}Empezá:${C.reset}  npx github:Aletsito2602/difortewsp login    ${C.dim}(abre el Studio, te logueás, listo)${C.reset}
 
 ${C.cyan}login${C.reset}                               Inicia sesión por el navegador (Studio)
 ${C.cyan}logout${C.reset}                              Cierra la sesión

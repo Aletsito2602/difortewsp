@@ -10,11 +10,12 @@ service_role), así que cada acción queda con tus permisos.
 ## Empezar
 
 ```bash
-npx difortewsp login      # abre el Studio → login → autorizás → listo
-difortewsp config         # verifica tu sesión
+npx github:Aletsito2602/difortewsp login    # abre el Studio → login → autorizás → listo
+npx github:Aletsito2602/difortewsp config    # verifica tu sesión
 ```
 
-(Mientras no esté publicado en npm, corré `node cli/difortewsp.js <comando>`, o `npm link` dentro de `cli/`.)
+Funciona en cualquier PC con Node ≥18, sin npm y sin clonar el repo. Tip: poné un alias
+(`alias dw="npx github:Aletsito2602/difortewsp"`) y usá `dw login`, `dw templates`, etc.
 
 ## Comandos
 
