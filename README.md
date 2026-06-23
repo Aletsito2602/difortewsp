@@ -17,6 +17,24 @@ npx github:Aletsito2602/difortewsp config    # verifica tu sesión
 Funciona en cualquier PC con Node ≥18, sin npm y sin clonar el repo. Tip: poné un alias
 (`alias dw="npx github:Aletsito2602/difortewsp"`) y usá `dw login`, `dw templates`, etc.
 
+## Modo interactivo (`diforte`)
+
+Instalalo global una vez y tenés un panel con menú (banner ASCII + navegación con flechas):
+```bash
+npm i -g github:Aletsito2602/difortewsp
+diforte
+```
+Te muestra el panorama (campañas, plantillas, leads, números) y un menú para verlos o **armar una campaña paso a paso**. ↑↓ para moverte, Enter para elegir, Esc para volver.
+
+## Skill de Claude Code
+
+Para que Claude Code tenga la skill **/diforte** (y use el CLI solo):
+```bash
+mkdir -p ~/.claude/skills/diforte
+curl -o ~/.claude/skills/diforte/SKILL.md https://raw.githubusercontent.com/Aletsito2602/difortewsp/main/skill/SKILL.md
+```
+Después, en Claude Code escribís `/diforte` o le hablás normal ("armame una campaña…") y maneja todo por el CLI.
+
 ## Comandos
 
 | Comando | Qué hace |

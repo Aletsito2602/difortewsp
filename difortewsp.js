@@ -9,6 +9,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const http = require('http')
+const readline = require('readline')
 const { exec } = require('child_process')
 
 // ---------------------------------------------------------------- config / sesión
@@ -335,6 +336,130 @@ async function cmdCampaignList() {
   }
 }
 
+// ---------------------------------------------------------------- TUI interactivo (comando `diforte`)
+function banner() {
+  const L = {
+    D: ['██████╗ ', '██╔══██╗', '██║  ██║', '██║  ██║', '██████╔╝', '╚═════╝ '],
+    I: ['██╗', '██║', '██║', '██║', '██║', '╚═╝'],
+    ' ': ['   ', '   ', '   ', '   ', '   ', '   '],
+    F: ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '██║     ', '╚═╝     '],
+    O: [' ██████╗ ', '██╔═══██╗', '██║   ██║', '██║   ██║', '╚██████╔╝', ' ╚═════╝ '],
+    R: ['██████╗ ', '██╔══██╗', '██████╔╝', '██╔══██╗', '██║  ██║', '╚═╝  ╚═╝'],
+    T: ['████████╗', '╚══██╔══╝', '   ██║   ', '   ██║   ', '   ██║   ', '   ╚═╝   '],
+    E: ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '███████╗', '╚══════╝'],
+  }
+  const word = 'DI FORTE', lines = []
+  for (let r = 0; r < 6; r++) lines.push('  ' + [...word].map(ch => L[ch][r]).join(''))
+  return C.cyan + C.b + lines.join('\n') + C.reset
+}
+function prompt(q) { return new Promise(r => { const rl = readline.createInterface({ input: process.stdin, output: process.stdout }); rl.question(`  ${q} `, a => { rl.close(); r(a.trim()) }) }) }
+function pause() { return prompt(`${C.dim}— Enter para volver al menú —${C.reset}`).then(() => {}) }
+function menu(items, title) {
+  return new Promise((resolve) => {
+    let idx = 0
+    readline.emitKeypressEvents(process.stdin)
+    if (process.stdin.isTTY) process.stdin.setRawMode(true)
+    process.stdin.resume()
+    const total = (title ? 1 : 0) + items.length + 1
+    let first = true
+    const draw = () => {
+      if (!first) process.stdout.write('\r\x1b[' + (total - 1) + 'A')
+      first = false
+      const lines = []
+      if (title) lines.push(`  ${C.b}${title}${C.reset}`)
+      items.forEach((it, i) => lines.push(i === idx ? `  ${C.cyan}❯ ${it}${C.reset}` : `    ${C.dim}${it}${C.reset}`))
+      lines.push(`  ${C.dim}↑↓ moverse · Enter elegir · Esc volver${C.reset}`)
+      process.stdout.write(lines.map(l => l + '\x1b[0K').join('\n'))
+    }
+    draw()
+    const onKey = (s, k) => {
+      if (!k) return
+      if (k.ctrl && k.name === 'c') { if (process.stdin.isTTY) process.stdin.setRawMode(false); process.stdout.write('\n'); process.exit(0) }
+      if (k.name === 'up') { idx = (idx - 1 + items.length) % items.length; draw() }
+      else if (k.name === 'down') { idx = (idx + 1) % items.length; draw() }
+      else if (k.name === 'return') done(idx)
+      else if (k.name === 'escape') done(-1)
+    }
+    const done = (v) => { process.stdin.removeListener('keypress', onKey); if (process.stdin.isTTY) process.stdin.setRawMode(false); process.stdout.write('\n'); resolve(v) }
+    process.stdin.on('keypress', onKey)
+  })
+}
+async function viewPanorama() {
+  console.log(`\n  ${C.b}Panorama${C.reset}\n`)
+  try {
+    const [camps, tpls, cols, nums] = await Promise.all([
+      sb('GET', 'campaigns?channel=eq.whatsapp_oficial&select=status'),
+      sb('GET', 'wa_templates?select=status'),
+      sb('GET', 'lead_collections?select=lead_count'),
+      sb('GET', 'wa_numbers?select=is_active'),
+    ])
+    const cActive = camps.filter(c => c.status === 'active').length
+    const tApp = tpls.filter(t => t.status === 'approved').length
+    const tPend = tpls.filter(t => t.status === 'submitted' || t.status === 'pending').length
+    const leads = cols.reduce((a, c) => a + (c.lead_count || 0), 0)
+    console.log(`  🚀  Campañas:  ${C.b}${camps.length}${C.reset}  (${C.green}${cActive} activas${C.reset})`)
+    console.log(`  📝  Plantillas: ${C.b}${tpls.length}${C.reset}  (${C.green}${tApp} aprobadas${C.reset}, ${C.yellow}${tPend} en revisión${C.reset})`)
+    console.log(`  👥  Listas:    ${C.b}${cols.length}${C.reset}  ·  ${leads} leads en total`)
+    console.log(`  📱  Números:   ${C.b}${nums.length}${C.reset}`)
+  } catch (e) { console.log('  ' + C.red + 'No pude cargar: ' + e.message + C.reset) }
+}
+async function wizardCampaign() {
+  console.log(`\n  ${C.b}Nueva campaña${C.reset}`)
+  const name = await prompt('Nombre de la campaña:')
+  if (!name) return console.log('  cancelado')
+  const ti = await menu(['Prospección (frío)', 'Seguimiento (24h)'], 'Tipo'); if (ti < 0) return
+  const type = ti === 0 ? 'prospeccion' : 'seguimiento'
+  const nums = await sb('GET', 'wa_numbers?select=phone,label')
+  let number = nums.length ? nums[0].phone : null
+  if (nums.length > 1) { const ni = await menu(nums.map(n => `${n.phone}  ${n.label || ''}`), 'Número'); if (ni < 0) return; number = nums[ni].phone }
+  const cols = await sb('GET', 'lead_collections?select=id,name,lead_count&order=created_at.desc')
+  const ai = await menu(cols.map(c => `${c.name}  (${c.lead_count ?? '?'} leads)`).concat(['— sin audiencia —']), 'Audiencia'); if (ai < 0) return
+  const audience = ai < cols.length ? cols[ai].name : null
+  const tpls = await sb('GET', 'wa_templates?status=eq.approved&select=friendly_name')
+  let template = null
+  if (tpls.length) { const pi = await menu(tpls.map(t => t.friendly_name).concat(['— texto libre (solo dentro de 24h) —']), 'Plantilla del paso 1'); if (pi < 0) return; if (pi < tpls.length) template = tpls[pi].friendly_name }
+  const def = { name, type, number, audience, steps: [template ? { template, delay_minutes: 0 } : { text: '¡Hola! Soy de Di Forte Living 🛋️', delay_minutes: 0 }] }
+  console.log('\n' + C.dim + JSON.stringify(def, null, 2) + C.reset)
+  const ci = await menu(['Crear en borrador', 'Crear y LANZAR (envía WhatsApps reales)', 'Cancelar'], '¿Confirmás?'); if (ci < 0 || ci === 2) return console.log('  cancelado')
+  if (ci === 1) def.launch = true
+  try {
+    const { payload, steps } = await buildCampaign(def)
+    const camp = await sb('POST', 'campaigns', [payload], 'return=representation'); const id = camp[0].id
+    await sb('POST', 'campaign_messages', steps.map(s => ({ ...s, campaign_id: id })), 'return=minimal')
+    if (def.launch && payload.lead_collection_id) { const n = await enrollCollection(id, payload.lead_collection_id); console.log(`  ${C.green}✓ Lanzada — ${n} leads inscriptos, el motor envía en ~1 min${C.reset}`) }
+    else console.log(`  ${C.green}✓ Campaña creada (${payload.status})${C.reset}`)
+  } catch (e) { console.log('  ' + C.red + e.message + C.reset) }
+}
+async function tui() {
+  if (!process.stdin.isTTY) return console.log(HELP)
+  let running = true
+  while (running) {
+    console.clear()
+    console.log('\n' + banner())
+    STORE = loadStore()
+    const logged = !!STORE.access_token
+    console.log(`\n  ${C.dim}Central de WhatsApp · ${logged ? C.green + '✓ ' + (STORE.email || 'sesión activa') : C.red + 'sin sesión'}${C.reset}${C.dim} · v0.3${C.reset}\n`)
+    if (!logged) {
+      const i = await menu(['🔑  Iniciar sesión (abre el navegador)', '❌  Salir'], 'Necesitás iniciar sesión')
+      if (i === 0) { await cmdLogin(); await pause() } else running = false
+      continue
+    }
+    const opts = ['📊  Panorama', '🚀  Campañas', '📝  Plantillas', '👥  Listas de leads', '📱  Números', '➕  Nueva campaña (guía)', '🔄  Sincronizar plantillas con Meta', '🚪  Cerrar sesión', '❌  Salir']
+    const i = await menu(opts, 'Menú principal')
+    if (i === -1 || i === 8) running = false
+    else if (i === 0) { await viewPanorama(); await pause() }
+    else if (i === 1) { console.log(''); await cmdCampaignList().catch(e => console.log('  ' + C.red + e.message)); await pause() }
+    else if (i === 2) { console.log(''); await cmdTemplatesList().catch(e => console.log('  ' + C.red + e.message)); await pause() }
+    else if (i === 3) { console.log(''); await cmdLists().catch(e => console.log('  ' + C.red + e.message)); await pause() }
+    else if (i === 4) { console.log(''); await cmdNumbers().catch(e => console.log('  ' + C.red + e.message)); await pause() }
+    else if (i === 5) { await wizardCampaign(); await pause() }
+    else if (i === 6) { console.log(''); await cmdTemplatesSync().catch(e => console.log('  ' + C.red + e.message)); await pause() }
+    else if (i === 7) { cmdLogout() }
+  }
+  console.log(`\n  ${C.cyan}¡Chau!${C.reset} 👋\n`)
+  process.exit(0)
+}
+
 const HELP = `${C.b}difortewsp${C.reset} — CLI de la plataforma WhatsApp de Di Forte
 
 ${C.b}Empezá:${C.reset}  npx github:Aletsito2602/difortewsp login    ${C.dim}(abre el Studio, te logueás, listo)${C.reset}
@@ -364,7 +489,8 @@ async function main() {
   const a = parseArgs(process.argv.slice(2))
   const [cmd, sub] = a._
   try {
-    if (!cmd || cmd === 'help' || a.help) return console.log(HELP)
+    if (cmd === 'help' || a.help) return console.log(HELP)
+    if (!cmd) return await tui()
     if (cmd === 'login') return await cmdLogin()
     if (cmd === 'logout') return cmdLogout()
     if (cmd === 'config') return await cmdConfig()
