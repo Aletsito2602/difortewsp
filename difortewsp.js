@@ -404,7 +404,7 @@ async function viewPanorama() {
   } catch (e) { console.log('  ' + C.red + 'No pude cargar: ' + e.message + C.reset) }
 }
 async function wizardCampaign() {
-  console.log(`\n  ${C.b}Nueva campaña${C.reset}`)
+  console.log(`\n  ${C.b}Nueva campaña${C.reset}  ${C.dim}(escribí y Enter · Enter vacío = cancelar)${C.reset}`)
   const name = await prompt('Nombre de la campaña:')
   if (!name) return console.log('  cancelado')
   const ti = await menu(['Prospección (frío)', 'Seguimiento (24h)'], 'Tipo'); if (ti < 0) return
@@ -438,7 +438,8 @@ async function tui() {
     console.log('\n' + banner())
     STORE = loadStore()
     const logged = !!STORE.access_token
-    console.log(`\n  ${C.dim}Central de WhatsApp · ${logged ? C.green + '✓ ' + (STORE.email || 'sesión activa') : C.red + 'sin sesión'}${C.reset}${C.dim} · v0.3${C.reset}\n`)
+    console.log(`\n  ${C.dim}Central de WhatsApp · ${logged ? C.green + '✓ ' + (STORE.email || 'sesión activa') : C.red + 'sin sesión'}${C.reset}${C.dim} · v0.3${C.reset}`)
+    console.log(`  ${C.dim}Cómo moverte:${C.reset}  ${C.cyan}↑ ↓${C.reset} elegís opción  ·  ${C.cyan}Enter${C.reset} entrás  ·  ${C.cyan}Esc${C.reset} volvés  ·  ${C.cyan}Ctrl+C${C.reset} salís\n`)
     if (!logged) {
       const i = await menu(['🔑  Iniciar sesión (abre el navegador)', '❌  Salir'], 'Necesitás iniciar sesión')
       if (i === 0) { await cmdLogin(); await pause() } else running = false

@@ -1,6 +1,6 @@
 {
   "name": "difortewsp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "CLI de la plataforma WhatsApp de Di Forte (login por navegador; plantillas, media, leads y campañas desde la terminal)",
   "bin": {
     "difortewsp": "difortewsp.js",
