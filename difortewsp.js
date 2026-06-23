@@ -35,7 +35,14 @@ const ok = (s) => console.log(`${C.green}✓${C.reset} ${s}`)
 const info = (s) => console.log(`${C.cyan}›${C.reset} ${s}`)
 const warn = (s) => console.log(`${C.yellow}!${C.reset} ${s}`)
 function die(s) { console.error(`${C.red}✗ ${s}${C.reset}`); process.exit(1) }
-const cleanPhone = (p) => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 8 ? '+' + d : null }
+const cleanPhone = (p) => {
+  let d = String(p || '').replace(/\D/g, ''); if (!d) return null
+  if (d.startsWith('549')) { /* ya correcto */ }
+  else if (d.startsWith('54') && d.length === 12) d = '549' + d.slice(2)
+  else if (d.length === 10) d = '549' + d
+  else if (d.length === 11 && d[0] === '9') d = '54' + d
+  return d.length >= 8 ? '+' + d : null
+}
 
 // ---------------------------------------------------------------- auth (JWT + refresh)
 async function getAccessToken() {
