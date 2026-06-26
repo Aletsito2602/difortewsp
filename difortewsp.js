@@ -282,7 +282,7 @@ async function buildCampaign(def) {
 async function enrollCollection(campId, colId) {
   const items = await sb('GET', `lead_collection_items?select=lead_id&collection_id=eq.${colId}&limit=5000`)
   const leadIds = items.map(i => i.lead_id); if (!leadIds.length) return 0
-  const leads = await sb('GET', `business_leads?select=id,phone&id=in.(${leadIds.join(',')})`)
+  const leads = await sb('GET', `business_leads?select=id,phone&id=in.(${leadIds.join(',')})&opted_out=eq.false`)
   const existing = await sb('GET', `wa_sequence_enrollments?select=lead_id&campaign_id=eq.${campId}`)
   const seen = new Set(existing.map(e => e.lead_id))
   const rows = leads.filter(l => l.phone && !seen.has(l.id)).map(l => ({ campaign_id: campId, lead_id: l.id, wa_id: cleanPhone(l.phone), step_index: 0, status: 'active', next_at: new Date().toISOString() })).filter(r => r.wa_id)
